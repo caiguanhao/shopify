@@ -9,10 +9,13 @@ import (
 	"net/http"
 )
 
+// UploadJSONL wraps UploadJSONLWithContext using context.Background.
 func (client *Client) UploadJSONL(jsonl string) (string, error) {
 	return client.UploadJSONLWithContext(context.Background(), jsonl)
 }
 
+// Upload JSONL string and return the stagedUploadPath used in
+// bulkOperationRunMutation.
 func (client *Client) UploadJSONLWithContext(ctx context.Context, jsonl string) (key string, err error) {
 	var uploadUrl string
 	var params []struct {

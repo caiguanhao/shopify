@@ -53,6 +53,7 @@ type (
 	}
 )
 
+// Create a new client with shop name and http client.
 func NewClient(shop string, httpClient *http.Client) *Client {
 	if t, ok := httpClient.Transport.(*Oauth2Transport); ok {
 		httpClient.Transport = &transport{t}
@@ -63,6 +64,8 @@ func NewClient(shop string, httpClient *http.Client) *Client {
 	}
 }
 
+// Prepare a new GraphQL query or mutation. Variables must be provided in
+// key-value pair order.
 func (client *Client) New(gql string, variables ...interface{}) *gqlData {
 	d := &gqlData{Query: gql, client: client}
 	if len(variables) > 0 {
@@ -84,17 +87,22 @@ func (client *Client) New(gql string, variables ...interface{}) *gqlData {
 	return d
 }
 
+// Set context.
 func (d *gqlData) WithContext(ctx context.Context) *gqlData {
 	d.ctx = ctx
 	return d
 }
 
+// MustDo is like Do but panics if operation fails.
 func (d *gqlData) MustDo(dest ...interface{}) {
 	if err := d.Do(dest...); err != nil {
 		panic(err)
 	}
 }
 
+// Execute the GraphQL query or mutation and unmarshal JSON response into the
+// optional dest. Specify JSON path after each dest to efficiently get required
+// info from deep nested structs.
 func (d *gqlData) Do(dest ...interface{}) error {
 	url := fmt.Sprintf("https://%s.myshopify.com/admin/api/2021-10/graphql.json", d.client.Shop)
 	data, err := json.Marshal(d)
