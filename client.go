@@ -18,7 +18,7 @@ type (
 		httpClient *http.Client
 	}
 
-	GqlData struct {
+	Request struct {
 		Query     string                 `json:"query"`
 		Variables map[string]interface{} `json:"variables,omitempty"`
 
@@ -67,8 +67,8 @@ func NewClient(shop string, httpClient *http.Client) *Client {
 
 // Prepare a new GraphQL query or mutation. Variables must be provided in
 // key-value pair order.
-func (client *Client) New(gql string, variables ...interface{}) *GqlData {
-	d := &GqlData{Query: gql, client: client}
+func (client *Client) New(gql string, variables ...interface{}) *Request {
+	req := &Request{Query: gql, client: client}
 	if len(variables) > 0 {
 		var key *string = nil
 		for _, item := range variables {
@@ -77,26 +77,26 @@ func (client *Client) New(gql string, variables ...interface{}) *GqlData {
 					key = &s
 				}
 			} else {
-				if d.Variables == nil {
-					d.Variables = map[string]interface{}{}
+				if req.Variables == nil {
+					req.Variables = map[string]interface{}{}
 				}
-				d.Variables[*key] = item
+				req.Variables[*key] = item
 				key = nil
 			}
 		}
 	}
-	return d
+	return req
 }
 
 // Set context.
-func (d *GqlData) WithContext(ctx context.Context) *GqlData {
-	d.ctx = ctx
-	return d
+func (req *Request) WithContext(ctx context.Context) *Request {
+	req.ctx = ctx
+	return req
 }
 
 // MustDo is like Do but panics if operation fails.
-func (d *GqlData) MustDo(dest ...interface{}) {
-	if err := d.Do(dest...); err != nil {
+func (req *Request) MustDo(dest ...interface{}) {
+	if err := req.Do(dest...); err != nil {
 		panic(err)
 	}
 }
@@ -104,24 +104,24 @@ func (d *GqlData) MustDo(dest ...interface{}) {
 // Execute the GraphQL query or mutation and unmarshal JSON response into the
 // optional dest. Specify JSON path after each dest to efficiently get required
 // info from deep nested structs.
-func (d *GqlData) Do(dest ...interface{}) error {
-	url := fmt.Sprintf("https://%s.myshopify.com/admin/api/2021-10/graphql.json", d.client.Shop)
-	data, err := json.Marshal(d)
+func (req *Request) Do(dest ...interface{}) error {
+	url := fmt.Sprintf("https://%s.myshopify.com/admin/api/2021-10/graphql.json", req.client.Shop)
+	data, err := json.Marshal(req)
 	if err != nil {
 		return err
 	}
 	var ctx context.Context
-	if d.ctx == nil {
+	if req.ctx == nil {
 		ctx = context.Background()
 	} else {
-		ctx = d.ctx
+		ctx = req.ctx
 	}
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
 	}
-	req.Header.Add("Content-Type", "application/json")
-	res, err := d.client.httpClient.Do(req)
+	httpReq.Header.Add("Content-Type", "application/json")
+	res, err := req.client.httpClient.Do(httpReq)
 	if err != nil {
 		return err
 	}
