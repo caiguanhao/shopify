@@ -12,6 +12,8 @@ var (
 )
 
 type (
+	Oauth2Config    = oauth2.Config
+	Oauth2Endpoint  = oauth2.Endpoint
 	Oauth2Token     = oauth2.Token
 	Oauth2Transport = oauth2.Transport
 
