@@ -55,6 +55,8 @@ conf := &shopify.Oauth2Config{
 	ClientSecret: "shpss_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
 	Scopes: []string{
 		"read_customers",
+		// for list of access scopes, visit:
+		// https://shopify.dev/api/usage/access-scopes
 	},
 	RedirectURL: "http://127.0.0.1/hello",
 	Endpoint: shopify.Oauth2Endpoint{
@@ -68,7 +70,7 @@ fmt.Println(conf.AuthCodeURL("state"))
 
 // once user installed the app, it will redirect to url like this:
 // http://127.0.0.1/hello?code=codexxxxxxxxxxxxxxxxxxxxxxxxxxxx&hmac=...
-// then get the token with the code in the url
+// verify the request then get the token with the code in the url
 token, err := conf.Exchange(ctx, "codexxxxxxxxxxxxxxxxxxxxxxxxxxxx")
 if err != nil {
 	log.Fatal(err)
