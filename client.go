@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+var (
+	ErrUnauthorized = errors.New("401 Unauthorized: incorrect authentication credential")
+)
+
 type (
 	Client struct {
 		Shop       string
@@ -126,6 +130,9 @@ func (req *Request) Do(dest ...interface{}) error {
 		return err
 	}
 	defer res.Body.Close()
+	if res.StatusCode == 401 {
+		return ErrUnauthorized
+	}
 	if res.StatusCode != 200 {
 		return fmt.Errorf("response status is not ok: %d", res.StatusCode)
 	}
