@@ -53,6 +53,39 @@ edges { cursor node { id } }
 	}
 }
 
+func TestNull(t *testing.T) {
+	var resp1 []string
+	var resp2 []*string
+	var resp3 string
+	var resp4 *string
+	client.New(`query ($ids: [ID!]!) { nodes(ids: $ids) { ...on ProductVariant { id } } }`,
+		"ids", []string{"gid://shopify/ProductVariant/1"}).
+		MustDo(
+			&resp1, "nodes.*.id", &resp2, "nodes.*.id",
+			&resp3, "nodes.*.id", &resp4, "nodes.*.id",
+		)
+	if len(resp1) != 1 {
+		t.Error("ERROR: length should be 1")
+	} else {
+		if resp1[0] != "" {
+			t.Error("ERROR: string must be empty")
+		}
+	}
+	if len(resp2) != 1 {
+		t.Error("ERROR: length should be 1")
+	} else {
+		if resp2[0] != nil {
+			t.Error("ERROR: string must be nil")
+		}
+	}
+	if resp3 != "" {
+		t.Error("ERROR: string must be empty")
+	}
+	if resp4 != nil {
+		t.Error("ERROR: string must be nil")
+	}
+}
+
 func TestMutation(t *testing.T) {
 	const example = "https://example.com/"
 

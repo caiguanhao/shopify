@@ -195,10 +195,14 @@ func arrange(data []byte, target interface{}, key string) {
 	items := collect(d.Elem(), keys)
 	v := reflect.Indirect(reflect.ValueOf(target))
 	for n := range items {
+		item := items[n]
+		if !item.IsValid() {
+			item = reflect.New(baseType).Elem()
+		}
 		if v.Kind() == reflect.Slice {
-			v.Set(reflect.Append(v, items[n]))
+			v.Set(reflect.Append(v, item))
 		} else {
-			v.Set(items[n])
+			v.Set(item)
 		}
 	}
 }
