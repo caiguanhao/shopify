@@ -26,21 +26,23 @@ var customers []struct {
 client.New(`query { customers(first: 10) { edges { node { id email } } } }`).
 	MustDo(&customers, "customers.edges.*.node")
 
-// input with parameters
-// output with pagination
+// get all customers with input parameters and pagination output
 
 customers = nil
-var cursor string
-var hasNextPage bool
 
-client.New(`query ($n: Int) { customers(first: $n) {
+var cursor *string
+var hasNextPage bool = true
+for hasNextPage {
+	client.New(`query ($n: Int, $after: String) {
+customers(first: $n, after: $after) {
 pageInfo { hasNextPage }
-edges { cursor node { id email } } } }`, "n", 2).
-	MustDo(
-		&customers, "customers.edges.*.node",
-		&cursor, "customers.edges.*.cursor",
-		&hasNextPage, "customers.pageInfo.hasNextPage",
-	)
+edges { cursor node { id email } } } }`, "n", 2, "after", cursor).
+		MustDo(
+			&customers, "customers.edges.*.node",
+			&cursor, "customers.edges.*.cursor",
+			&hasNextPage, "customers.pageInfo.hasNextPage",
+		)
+}
 ```
 
 ## Oauth2 Example
