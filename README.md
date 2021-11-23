@@ -1,10 +1,12 @@
 # shopify
 
-Shopify GraphQL Admin API client
+Shopify GraphQL and Restful Admin API client
 
 [Docs of this package](https://pkg.go.dev/github.com/caiguanhao/shopify)
 
 [Shopify GraphQL Admin API Docs](https://shopify.dev/api/admin-graphql)
+
+[Shopify REST Admin API Docs](https://shopify.dev/api/admin-rest)
 
 [Create Apps](https://partners.shopify.com/)
 
@@ -18,6 +20,9 @@ src := shopify.Oauth2StaticTokenSource(
 )
 httpClient := shopify.Oauth2NewClient(context.Background(), src)
 client := shopify.NewClient(os.Getenv("SHOPIFY_SHOP"), httpClient)
+
+// set to true to print request and response body to stderr
+client.Debug = false
 
 var customers []struct {
 	Id    string `json:"id"`
@@ -43,6 +48,30 @@ edges { cursor node { id email } } } }`, "n", 2, "after", cursor).
 			&hasNextPage, "customers.pageInfo.hasNextPage",
 		)
 }
+
+// For Restful API:
+
+// get themes
+var themes []struct {
+	Id   int
+	Role string
+}
+client.NewRest("GET", "themes").MustDo(&themes, "themes.*")
+
+// get files of a specific theme
+var files []string
+client.NewRest("GET", fmt.Sprintf("themes/%d/assets", 100000000000), shopify.KV{
+	"fields": "key",
+}).MustDo(&files, "assets.*.key")
+
+// update theme file
+var updatedAt string
+client.NewRest("PUT", fmt.Sprintf("themes/%d/assets", 100000000000), nil, shopify.KV{
+	"asset": shopify.KV{
+		"key":   "layout/theme.liquid",
+		"value": "<html>...</html>",
+	},
+}).MustDo(&updatedAt, "asset.updated_at")
 ```
 
 ### Multiple queries in one request

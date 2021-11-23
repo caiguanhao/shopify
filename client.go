@@ -138,18 +138,18 @@ func (req *Request) Do(dest ...interface{}) error {
 		return err
 	}
 	defer res.Body.Close()
-	if res.StatusCode == 401 {
-		return ErrUnauthorized
-	}
-	if res.StatusCode != 200 {
-		return fmt.Errorf("response status is not ok: %d", res.StatusCode)
-	}
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}
 	if req.client.Debug {
 		log.Println("[GQLResBody]", string(b))
+	}
+	if res.StatusCode == 401 {
+		return ErrUnauthorized
+	}
+	if res.StatusCode != 200 {
+		return fmt.Errorf("response status is not ok: %d", res.StatusCode)
 	}
 
 	var resp gqlResponse
