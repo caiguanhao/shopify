@@ -175,3 +175,11 @@ src := conf.TokenSource(ctx, token)
 httpClient := shopify.Oauth2NewClient(ctx, src)
 client := shopify.NewClient(/* your shop name */, httpClient)
 ```
+
+## Test
+
+```
+export SHOPIFY_TOKEN=shpat_00000000000000000000000000000000 SHOPIFY_SHOP=demo
+export DEBUG=1 # if you want to show more info
+go test -v ./...
+```
