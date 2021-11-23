@@ -15,6 +15,7 @@ func init() {
 	)
 	httpClient := Oauth2NewClient(context.Background(), src)
 	client = NewClient(os.Getenv("SHOPIFY_SHOP"), httpClient)
+	client.Debug = os.Getenv("DEBUG") == "1"
 }
 
 func TestQuery(t *testing.T) {

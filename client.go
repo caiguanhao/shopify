@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"reflect"
 	"strings"
@@ -18,7 +19,8 @@ var (
 
 type (
 	Client struct {
-		Shop       string
+		Debug      bool   // print request and response body if true
+		Shop       string // shop name
 		httpClient *http.Client
 	}
 
@@ -32,6 +34,7 @@ type (
 
 	Errors []Error
 
+	// Error response
 	Error struct {
 		Message   string `json:"message"`
 		Locations []struct {
@@ -43,6 +46,7 @@ type (
 
 	UserErrors []UserError
 
+	// Error of mutation input
 	UserError struct {
 		Field   []string `json:"field"`
 		Message string   `json:"message"`
@@ -120,6 +124,10 @@ func (req *Request) Do(dest ...interface{}) error {
 	} else {
 		ctx = req.ctx
 	}
+	if req.client.Debug {
+		log.Println("[GQLReqURL] ", url)
+		log.Println("[GQLReqBody]", string(data))
+	}
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(data))
 	if err != nil {
 		return err
@@ -139,6 +147,9 @@ func (req *Request) Do(dest ...interface{}) error {
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
+	}
+	if req.client.Debug {
+		log.Println("[GQLResBody]", string(b))
 	}
 
 	var resp gqlResponse
