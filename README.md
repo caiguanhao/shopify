@@ -76,6 +76,13 @@ client.NewRest("PUT", fmt.Sprintf("themes/%d/assets", 100000000000), nil, shopif
 
 ### Multiple queries in one request
 
+```go
+var launchUrl, currencyCode string
+client.New("{ cai: currentAppInstallation { launchUrl }, shop: shop { currencyCode } }").
+	MustDo(&launchUrl, "cai.launchUrl", &currencyCode, "shop.currencyCode")
+fmt.Println(launchUrl, currencyCode)
+```
+
 [codeDiscountNodeByCode](https://shopify.dev/api/admin-graphql/2021-10/queries/codediscountnodebycode)
 is a query function to find a discount by code. Use GraphQL aliases to find
 multiple codes in one request.
