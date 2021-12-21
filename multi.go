@@ -118,6 +118,11 @@ func (m *Multi) Do() (gql string, args, targets []interface{}) {
 	return
 }
 
+// Len returns number of items in the chain.
+func (m Multi) Len() int {
+	return len(m.items)
+}
+
 func (m Multi) String() string {
 	var list []string
 	for i := range m.items {
