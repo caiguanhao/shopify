@@ -10,11 +10,14 @@ import (
 	"log"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strings"
 )
 
 var (
 	ErrUnauthorized = errors.New("401 Unauthorized: incorrect authentication credential")
+
+	reOperationArgs = regexp.MustCompile(`([\w!]+)\s*:\s*([\w!]+)`)
 )
 
 type (
@@ -60,6 +63,8 @@ type (
 	gqlResponseUserErrors struct {
 		Data map[string]map[string]*UserErrors `json:"data"`
 	}
+
+	targetFunc func(...interface{}) []interface{}
 )
 
 // Create a new client with shop name and http client.
@@ -188,6 +193,84 @@ func (req *Request) Do(dest ...interface{}) error {
 		return nil
 	}
 	return json.Unmarshal(*resp.Data, dest[0])
+}
+
+// NewMulti generates GraphQL query based on multiple same operations. The
+// first argument is the operation type, which can be query or mutation. The
+// second argument is the name of the operation. The third argument is the the
+// operation arguments in the format of "name: type" and separated by commas.
+// The fourth argument is the body of the query.  If the body starts with
+// corresponding type, then fragment will be used. The rest arguments are the
+// input values in the order of operation arguments.
+//
+// The gql and args returned can be used in Client.New(). The third return
+// value is a function to generate destinations for Request.Do(), its arguments
+// are destinations to slices followed by a JSON path.
+func NewMulti(operationType, operation, operationArgs, body string, inputs ...interface{}) (gql string, args []interface{}, targets targetFunc) {
+	argTypes := reOperationArgs.FindAllStringSubmatch(operationArgs, -1)
+	numberOfItems := len(inputs) / len(argTypes)
+	if numberOfItems == 0 {
+		return
+	}
+	var bodyType string
+	if i := strings.Index(body, "{"); i > -1 {
+		bodyType = strings.TrimSpace(body[0:i])
+		body = body[i:]
+	}
+	if bodyType != "" {
+		gql = "fragment FRAG on " + bodyType + " " + body + "\n"
+		body = "{ ...FRAG }"
+	}
+	var operations []string
+	var argsList []string
+	i := 0
+	for a := 0; a < numberOfItems; a++ {
+		var operationArgs []string
+		for b := range argTypes {
+			argsList = append(argsList, fmt.Sprintf("$%s%d: %s", argTypes[b][1], a, argTypes[b][2]))
+			operationArgs = append(operationArgs, fmt.Sprintf("%s: $%s%d", argTypes[b][1], argTypes[b][1], a))
+			args = append(args, fmt.Sprintf("%s%d", argTypes[b][1], a), inputs[i])
+			i += 1
+		}
+		operations = append(operations, fmt.Sprintf("gql%d: %s(%s) %s", a, operation, strings.Join(operationArgs, ", "), body))
+	}
+	gql += operationType + " (" + strings.Join(argsList, ", ") + ") {\n" + strings.Join(operations, "\n") + "\n" + "}"
+	targets = func(dest ...interface{}) (targets []interface{}) {
+		for n := 0; n < len(dest)/2; n++ {
+			rv := reflect.Indirect(reflect.ValueOf(dest[2*n]))
+			rv.Set(reflect.MakeSlice(reflect.SliceOf(rv.Type().Elem()), numberOfItems, numberOfItems))
+			for i := 0; i < numberOfItems; i++ {
+				targets = append(targets, rv.Index(i).Addr().Interface(), fmt.Sprintf("gql%d%s", i, dest[2*n+1].(string)))
+			}
+		}
+		return
+	}
+	return
+}
+
+// Turn any slice into slice of interface.
+func Slice(slice interface{}) (out []interface{}) {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() == reflect.Slice {
+		for i := 0; i < rv.Len(); i++ {
+			out = append(out, rv.Index(i).Interface())
+		}
+	}
+	return
+}
+
+// Remove any zero value in a slice.
+func RemoveZeroValues(slice interface{}) (out []interface{}) {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() == reflect.Slice {
+		for i := 0; i < rv.Len(); i++ {
+			if rv.Index(i).IsZero() {
+				continue
+			}
+			out = append(out, rv.Index(i).Interface())
+		}
+	}
+	return
 }
 
 func arrange(data []byte, target interface{}, key string) {

@@ -76,6 +76,8 @@ client.NewRest("PUT", fmt.Sprintf("themes/%d/assets", 100000000000), nil, shopif
 
 ### Multiple queries in one request
 
+You can use NewMulti() or write your own GQL:
+
 ```go
 var launchUrl, currencyCode string
 client.New("{ cai: currentAppInstallation { launchUrl }, shop: shop { currencyCode } }").
@@ -83,9 +85,8 @@ client.New("{ cai: currentAppInstallation { launchUrl }, shop: shop { currencyCo
 fmt.Println(launchUrl, currencyCode)
 ```
 
+Below is an example to find multiple discount codes in one request.
 [codeDiscountNodeByCode](https://shopify.dev/api/admin-graphql/2021-10/queries/codediscountnodebycode)
-is a query function to find a discount by code. Use GraphQL aliases to find
-multiple codes in one request.
 
 ```go
 package main
@@ -93,7 +94,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"time"
 
@@ -138,32 +138,47 @@ type (
 	}
 )
 
-func findDiscount(codes ...string) ([]*shopifyCodeDiscountNodeResponse, error) {
+func findDiscount(codes ...string) (discounts []*shopifyCodeDiscountNodeResponse, err error) {
 	base := `{ id codeDiscount { __typename ...on DiscountCodeBasic {
   title status startsAt endsAt
 } } }`
-	gql := "query ("
-	for i := range codes {
-		if i > 0 {
-			gql += ", "
-		}
-		gql += fmt.Sprintf("$c%d: String!", i)
-	}
-	gql += ") {\n"
-	discounts := make([]*shopifyCodeDiscountNodeResponse, len(codes))
-	var args []interface{}
-	var targets []interface{}
-	for i, code := range codes {
-		gql += fmt.Sprintf("c%d: codeDiscountNodeByCode(code: $c%d) %s\n", i, i, base)
-		args = append(args, fmt.Sprintf("c%d", i), code)
-		targets = append(targets, &discounts[i], fmt.Sprintf("c%d", i))
-	}
-	gql += "}"
-	err := client.New(gql, args...).Do(targets...)
+	//--- use NewMulti:
+
+	gql, args, makeTargets := shopify.NewMulti("query", "codeDiscountNodeByCode",
+		"code: String!", base, shopify.Slice(codes)...)
+	targets := makeTargets(&discounts, "")
+
+	//--- or use NewMulti with fragment: (this could make gql shorter)
+
+	// gql, args, makeTargets := shopify.NewMulti("query", "codeDiscountNodeByCode",
+	// 	"code: String!", "DiscountCodeNode"+base, shopify.Slice(codes)...)
+	// targets := makeTargets(&discounts, "")
+
+	//--- instead of this:
+
+	// gql := "query ("
+	// for i := range codes {
+	// 	if i > 0 {
+	// 		gql += ", "
+	// 	}
+	// 	gql += fmt.Sprintf("$c%d: String!", i)
+	// }
+	// gql += ") {\n"
+	// discounts = make([]*shopifyCodeDiscountNodeResponse, len(codes))
+	// var args []interface{}
+	// var targets []interface{}
+	// for i, code := range codes {
+	// 	gql += fmt.Sprintf("c%d: codeDiscountNodeByCode(code: $c%d) %s\n", i, i, base)
+	// 	args = append(args, fmt.Sprintf("c%d", i), code)
+	// 	targets = append(targets, &discounts[i], fmt.Sprintf("c%d", i))
+	// }
+	// gql += "}"
+
+	err = client.New(gql, args...).Do(targets...)
 	if err != nil {
-		return nil, err
+		discounts = nil
 	}
-	return discounts, nil
+	return
 }
 ```
 
