@@ -183,6 +183,10 @@ func (req *Request) Do(dest ...interface{}) error {
 		}
 		return nil
 	}
+	if x, ok := dest[0].(*[]byte); ok {
+		*x = *resp.Data
+		return nil
+	}
 	return json.Unmarshal(*resp.Data, dest[0])
 }
 
