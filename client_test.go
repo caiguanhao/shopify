@@ -3,7 +3,6 @@ package shopify
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -126,93 +125,6 @@ userErrors { field message } scriptTag { id } } }
 	} else {
 		t.Log("created", id)
 		deleteScriptTag(t, id)
-	}
-}
-
-func TestNewMulti(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// with fragment:
-
-	gql, args, targets := NewMulti(
-		"query",
-		"products",
-		"first: Int, reverse: Boolean",
-		`ProductConnection { edges { node { id title } } }`,
-		1, true, 1, false,
-	)
-	if gql != `fragment FRAG on ProductConnection { edges { node { id title } } }
-query ($first0: Int, $reverse0: Boolean, $first1: Int, $reverse1: Boolean) {
-gql0: products(first: $first0, reverse: $reverse0) { ...FRAG }
-gql1: products(first: $first1, reverse: $reverse1) { ...FRAG }
-}` {
-		t.Error("gql is not correct")
-	}
-	if toJSON(args) != `["first0",1,"reverse0",true,"first1",1,"reverse1",false]` {
-		t.Error("args are not correct")
-	}
-	var ids, titles []string
-	dests := targets(&ids, ".edges.*.node.id", &titles, ".edges.*.node.title")
-	if toJSON(dests) != `["","gql0.edges.*.node.id","","gql1.edges.*.node.id","","gql0.edges.*.node.title","","gql1.edges.*.node.title"]` {
-		t.Error("targets are not correct")
-	}
-	client.New(gql, args...).WithContext(ctx).MustDo(dests...)
-	t.Log("ids =", ids)
-	t.Log("titles =", titles)
-	if len(ids) < 1 {
-		t.Error("ids should not be empty")
-	}
-	if len(titles) < 1 {
-		t.Error("titles should not be empty")
-	}
-
-	var codes []string
-	client.New(`{ codeDiscountNodes(first: 10) { edges { node {
-codeDiscount { ...on DiscountCodeBasic { title } } } } } }`).WithContext(ctx).MustDo(
-		&codes, "codeDiscountNodes.edges.*.node.codeDiscount.title",
-	)
-	presentCodes := RemoveZeroValues(codes)
-	if len(presentCodes) < 2 {
-		t.Log("warning: no discount codes to test")
-		return
-	}
-	presentCodes = presentCodes[0:2]
-	t.Log("codes =", presentCodes)
-
-	// without fragment:
-
-	gql, args, targets = NewMulti(
-		"query",
-		"codeDiscountNodeByCode",
-		"code: String!",
-		`{ id codeDiscount { ...on DiscountCodeBasic { status startsAt endsAt } } }`,
-		Slice(presentCodes)...,
-	)
-	if gql != `query ($code0: String!, $code1: String!) {
-gql0: codeDiscountNodeByCode(code: $code0) { id codeDiscount { ...on DiscountCodeBasic { status startsAt endsAt } } }
-gql1: codeDiscountNodeByCode(code: $code1) { id codeDiscount { ...on DiscountCodeBasic { status startsAt endsAt } } }
-}` {
-		t.Error("gql is not correct")
-	}
-	if toJSON(args) != fmt.Sprintf(`["code0","%s","code1","%s"]`, presentCodes[0], presentCodes[1]) {
-		t.Error("args are not correct")
-	}
-	var codeIds []string
-	var codeDiscounts []struct {
-		Status   string     `json:"status"`
-		StartsAt *time.Time `json:"startsAt"`
-		EndsAt   *time.Time `json:"endsAt"`
-	}
-	dests = targets(&codeIds, ".id", &codeDiscounts, ".codeDiscount")
-	client.New(gql, args...).WithContext(ctx).MustDo(dests...)
-	t.Log("code ids =", codeIds)
-	t.Log("code discounts =", codeDiscounts)
-	if len(codeIds) != 2 {
-		t.Error("code ids are not correct")
-	}
-	if len(codeDiscounts) != 2 {
-		t.Error("code discounts are not correct")
 	}
 }
 
